@@ -1,0 +1,216 @@
+* Target stopping simulation
+*
+* ntuples:
+*
+*
+
+################################################################
+### MATERIALS & COLORS
+################################################################
+
+material Fructose C,0.4 H,0.06 O,0.54 density=3.5   #6.68   # corresponds to 630 mg of target material in copper holder
+param yellow=1.0,0.89,0.03
+param gray=0.69,0.69,0.69
+param white=1,0.99,0.93
+param copper=0.64,0.3,0.18
+param bluegray=0.09,0.3,0.4
+param lightblue=0.35,0.75,0.93
+param pink=0.98,0.16,0.42
+
+################################################################
+## GEOMETRY VARIABLES
+################################################################
+
+param Tol=0.1          # general tolerance
+
+### VETO & ENTRANCE
+param L_Veto=5           # thickness veto
+param Ri_Veto=9          # inner radius veto
+param Ro_Veto=29.9       # outer radius veto
+param L_Entrance=0.2     # thickness entrance scintillator
+param R_Entrance=10      # radius entrance scintillator
+param gapLength=23       # distance between vetoDetector and entranceScintillator
+
+### WINDOW
+param WindowMaterial=Ti            # window material
+param L_Window=0.01                # window thickness
+param d_E2W=20                     # distance between entrance and window
+
+### CU TUBE
+param L_Cu=79            # length of Cu tube
+param Ri_Cu=9            # inner radius of Cu tube
+param Ro_Cu=12.5         # outer radius of Cu tube
+param d_Cu2T=20          # distance between end of Cu tube and target center
+
+### TARGET
+#param TargetMaterial=Li         # target material
+#param L_Target=2                # target thickness
+#param R_Target=10               # target radius
+#param L_Holder=2.01             # thickness target holder
+#param W_Holder=30               # width target holder
+#param H_Holder=30               # height target holder
+
+param TargetMaterial=Fructose   # target material
+param L_Target=1                # target thickness
+param R_Target=5                # target radius
+param L_Holder=2                # thickness target holder
+param W_Holder=30               # width target holder
+param H_Holder=30               # height target holder
+
+### Chamber_1
+param L_Chamber1=60             # length of Chamber_1
+param Ri_Chamber1=30            # inner radius of Chamber_1
+param Ro_Chamber1=39            # outer radius of Chamber_1
+
+
+### Chamber_2
+param L_Chamber2=124.01         # length of Chamber_2
+param W_Chamber2=78             # inner radius of Chamber_2
+param H_Chamber2=78             # outer radius of Chamber_2
+
+
+### Hole_chamber_2
+param W_Hole=9
+param L_Hole=30
+param H_Hole=30
+
+###Trapezoid
+param L_trap=31
+param UW_trap=65
+param LW_trap=35
+param H_trap=31
+
+
+################################################################
+### BEAM
+################################################################
+
+### EVENTS
+param -unset numberOfEvents=10000         # number of events
+param -unset firstEventID=0                # EventID of first Event
+
+### MOMENTUM in MeV/c
+param -unset muonP=27.5
+param -unset muonFWHMP=0.02
+
+beam gaussian beamZ=-200 sigmaX=10 sigmaY=10 meanMomentum=$muonP sigmaP=$muonFWHMP/2.355*$muonP nEvents=$numberOfEvents particle=mu-
+
+
+################################################################
+## SIMULATION SETTINGS
+################################################################
+
+param -unset killTime=1100                # time to kill the track if it did not reach target
+#trackcuts maxTime=$killTime               # kill particles after specified time
+# set seed behavior (Default: EventNumber, new before each run. set sets seed and does not re-seed between events)
+param -unset rdmSeed=1
+randomseed set $rdmSeed
+
+### PRECISION
+param zTolerance=0.01
+param DeltaOneStep=0.01
+param maxStep=0.1
+
+### OUTPUT
+param -unset steppingVerbose=0             # useful information about tracking
+param -unset outputName=Chamber_Stopping-$muonP
+param histoFile=/Users/katharina/Documents/Doktorarbeit/Simu/TargetChamberStopping/rootOutput/Output_$muonP-Window_$L_Window-$WindowMaterial-Target_$TargetMaterial
+
+### PHYSICS
+# QGSP is the "default" physics use-case for High Energy Physics
+# but QGSP_BERT is better for low-energy simulations
+# disable undesired mucapture proces
+physics QGSP_BERT_EMX  disable=muMinusCaptureAtRest,Decay
+
+# choose world material
+param worldMaterial=Vacuum
+
+# kill all particles which are not muons
+trackcuts keep=mu-
+particlecolor mu-=$pink
+
+################################################################
+### PLACE GEOMETRY
+################################################################
+
+### VETO, ENTRANCE & WINDOW
+tubs vetoDetector length=$L_Veto innerRadius=$Ri_Veto radius=$Ro_Veto material=Scintillator color=$bluegray,0.5
+detector entranceScintillator length=$L_Entrance radius=$R_Entrance material=Scintillator color=0.2,0.5,0.5 require=(PDGid==13) format=rootExtended color=$bluegray,0.5
+tubs Window length=$L_Window radius=$R_Entrance+5 material=$WindowMaterial color=0.2,0.5,0.3 color=$lightblue,0.5
+
+### TARGET
+box RawHolder height=$H_Holder width=$W_Holder length=$L_Holder material=Cu
+tubs TargetHole length=$L_Target+$Tol outerRadius=$R_Target+$Tol innerRadius=0 material=Cu
+boolean op=subtraction Holder RawHolder TargetHole z=-($L_Holder-$L_Target)/2 color=0.7,0.7,0.7,0.2
+tubs TargetCore length=$L_Target outerRadius=$R_Target innerRadius=0 material=$TargetMaterial
+group Target height=$H_Holder width=$W_Holder length=$L_Holder+3
+place TargetCore z=0 color=0.2,0.2,0.2,0.6 color=$white
+place Holder z=($L_Holder-$L_Target)/2 color=$copper,0.9
+endgroup
+
+### CU TUBE
+tubs CuShielding length=$L_Cu outerRadius=$Ro_Cu innerRadius=$Ri_Cu material=Cu color=$copper,0.3
+
+
+
+# chamber1
+tubs O_tub1 length=$L_Chamber1 outerRadius=$Ro_Chamber1 innerRadius=$Ri_Chamber1 material=Al color=0,0,1,0.1
+
+# Hole_chamber_1
+tubs I_tub1 length=$L_Chamber1 outerRadius=$Ro_Chamber1-9 innerRadius=0 material=Al color=0,0,1,0.1 
+
+# Subtract to create a tub chamber_1
+boolean op=subtraction Chamber_1 O_tub1 I_tub1  color=1,1,1
+
+
+
+# chamber2
+box O_box2 length=$L_Chamber2 width=$W_Chamber2 height=$H_Chamber2 material=Al color=1,0,0
+
+# Hole_chamber_2
+box I_box2 length=$L_Chamber2+1 width=$W_Chamber2-18 height=$H_Chamber2-18 material=Al 
+
+# Subtract to create a tub chamber_2
+boolean op=subtraction Chamber_2 O_box2 I_box2  color=1,1,1
+
+
+### this for fill the space between tub chamber_1 and box chamber_2
+box O_box2 length=2 width=$W_Chamber2-18.001 height=$H_Chamber2-18.001 material=Al color=1,0,0
+tubs O_tub1 length=3 outerRadius=$Ro_Chamber1-9 innerRadius=0 material=Fe color=0,0,1,0.1
+boolean op=subtraction plate O_box2 O_tub1  color=1,1,1
+
+
+
+### Hole in chamber_2
+box Hole length=$L_Hole width=2*$W_Hole height=$H_Hole material=Al  
+boolean op=subtraction T_Hole Chamber_2 Hole  x=-30 y=0 z=37
+place T_Hole z=-(($d_Cu2T+$L_Cu+$L_Holder)/2)+13.5 color=1,1,1
+
+### Trapezoid
+trap O_trap length=$L_trap height=$H_trap upperWidth=$UW_trap lowerWidth=$LW_trap material=Al color=1,0,0
+
+trap I_trap length=$L_trap-2 height=$H_trap+1 upperWidth=$UW_trap-5 lowerWidth=$LW_trap-5 material=Al color=1,0,0
+boolean op=subtraction trap  O_trap I_trap  
+
+
+
+place Target z=0 rotation=Y45
+place CuShielding z=-($d_Cu2T+$L_Cu/2+$L_Holder/2)
+place Window z=-($d_Cu2T+$L_Cu+$L_Holder/2+$L_Window/2)
+place entranceScintillator z=-($d_Cu2T+$L_Cu+$L_Holder/2+$L_Window+$d_E2W+$L_Entrance/2)
+place vetoDetector z=-($d_Cu2T+$L_Cu+$L_Holder/2+$L_Window+$d_E2W+$L_Entrance/2+$L_Veto/2+$gapLength)
+place Chamber_1 z=-(($gapLength+$L_Veto+$L_Entrance+$d_E2W+$L_Window)/2+$d_Cu2T+$L_Cu+$L_Holder/2+5)
+place plate z=-(($d_Cu2T+$L_Cu+$L_Holder)/2)+13.5-$L_Chamber1-1
+place trap x=-54.6 z=0 rotation=X90,Y270
+
+
+
+sample Target_Exit dir=1 radius=$R_Target file=$histoFile require=(ParentID==0) format=rootExtended
+place Target_Exit rotation=Y45 x=sqrt($L_Target)/2 z=sqrt($L_Target)/2
+
+sample Target_Entrance dir=1 radius=$R_Target file=$histoFile require=(ParentID==0) format=rootExtended
+place Target_Entrance rotation=Y45 x=-sqrt($L_Target)/2 z=-sqrt($L_Target)/2
+
+survey -
+
+beamlossntuple LostParticles file=$histoFile require=(ParentID==0) format=rootExtended
